@@ -20,7 +20,7 @@ exports.registerUser = asyncHandler(async (req, res) => {
   });
 
  
-  const verifyURL = `${req.protocol}://${req.get('host')}/api/auth/verify/${token}`;
+const verifyURL = `${process.env.BASE_URL}/api/auth/verify/${token}`;
 
   // 📧 send mail
   await transporter.sendMail({
