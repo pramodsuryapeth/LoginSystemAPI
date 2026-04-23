@@ -43,11 +43,19 @@ const verifyURL = `${process.env.BASE_URL}/api/auth/verify/${token}`;
 exports.loginUser = async (req, res, next) => {
   const { email, password } = req.body;
 
-
   const user = await User.findOne({ email });
+
+
   if (!user) {
     const err = new Error("User not found");
     err.statusCode = 404;
+    throw err;
+  }
+
+
+  if (!user.isVerified) {
+    const err = new Error("Email not verified. Please check your inbox.");
+    err.statusCode = 401;
     throw err;
   }
 
@@ -59,7 +67,7 @@ exports.loginUser = async (req, res, next) => {
     throw err;
   }
 
- 
+
   const token = jwt.sign(
     { id: user._id },
     process.env.JWT_SECRET,
