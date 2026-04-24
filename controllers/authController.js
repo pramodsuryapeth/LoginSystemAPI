@@ -20,7 +20,7 @@ exports.registerUser = asyncHandler(async (req, res) => {
   });
 
  
-const verifyURL = `${process.env.BASE_URL}/api/auth/verify/${token}`;
+const verifyURL = `${process.env.FRONTEND_URL}/verify/${token}`;
 
   // 📧 send mail
   await transporter.sendMail({
@@ -53,10 +53,12 @@ exports.loginUser = async (req, res, next) => {
   }
 
 
-  if (!user.isVerified) {
-    const err = new Error("Email not verified. Please check your inbox.");
-    err.statusCode = 401;
-    throw err;
+   if (!user.isVerified) {
+    return res.status(401).json({
+      success: false,
+      type: "EMAIL_NOT_VERIFIED",   
+      message: "Email not verified"
+    });
   }
 
 
@@ -107,5 +109,49 @@ exports.verifyEmail = asyncHandler(async (req, res) => {
 
   await user.save();
 
-  res.redirect(`${process.env.FRONTEND_URL}/verify-success`);
+  // res.redirect(`${process.env.FRONTEND_URL}/verify-success`);
+   res.json({
+    success: true,
+    message: "Email verified successfully"
+  });
+});
+
+exports.resendVerification = asyncHandler(async (req, res) => {
+  const { email } = req.body;
+
+  const user = await User.findOne({ email });
+
+  if (!user) {
+    const err = new Error("User not found");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  if (user.isVerified) {
+    const err = new Error("Email already verified");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const token = crypto.randomBytes(32).toString('hex');
+
+  user.verificationToken = token;
+  user.verificationTokenExpire = Date.now() + 30 * 60 * 1000;
+  await user.save();
+
+  // 🔥 FRONTEND LINK
+  const verifyURL = `${process.env.FRONTEND_URL}/verify/${token}`;
+
+  await transporter.sendMail({
+    from: process.env.EMAIL_USER,
+    to: email,
+    subject: "Verify your email",
+    html: `
+      <h3>Email Verification</h3>
+      <p>Click below:</p>
+      <a href="${verifyURL}">Verify Email</a>
+    `
+  });
+
+  res.json({ message: "Verification email sent" });
 });
